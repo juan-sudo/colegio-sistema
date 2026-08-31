@@ -7,16 +7,19 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libonig-dev \
     libxml2-dev \
-    zip \
+    libzip-dev \
     unzip \
     nodejs \
     npm \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
-    libwebp-dev
+    libwebp-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Instalar extensiones de PHP
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
 
 # Instalar Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -24,10 +27,10 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Establecer directorio de trabajo
 WORKDIR /var/www/html
 
-# Copiar archivos del proyecto
-COPY . .
+# Copiar archivos del proyecto (optimizado)
+COPY --chown=www-data:www-data . .
 
-# INSTALAR DEPENDENCIAS DE PHP (CORREGIDO)
+# Instalar dependencias de PHP (SIN ignorar extensiones)
 RUN composer install --optimize-autoloader --no-interaction
 
 # Instalar dependencias de Node y compilar assets (Tailwind)
@@ -37,9 +40,10 @@ RUN npm install && npm run build
 RUN php artisan config:cache && php artisan route:cache
 
 # Configurar permisos
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Exponer puerto
+# Exponer puerto (Render/Blink usan 10000 por defecto)
 EXPOSE 10000
 
 # Comando de inicio
