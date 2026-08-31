@@ -1,0 +1,63 @@
+services:
+  - type: web
+    name: colegio-sistema
+    runtime: docker
+    plan: starter
+    branch: main
+    rootDir: .
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_KEY
+        generateValue: true
+      - key: DB_CONNECTION
+        value: mysql
+      - key: DB_HOST
+        fromGroup:
+          name: colegio-mysql
+          key: host
+      - key: DB_PORT
+        value: 3306
+      - key: DB_DATABASE
+        value: colegio_sistema
+      - key: DB_USERNAME
+        fromGroup:
+          name: colegio-mysql
+          key: username
+      - key: DB_PASSWORD
+        fromGroup:
+          name: colegio-mysql
+          key: password
+      - key: SESSION_DRIVER
+        value: file
+      - key: CACHE_DRIVER
+        value: file
+      - key: QUEUE_CONNECTION
+        value: sync
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: FILESYSTEM_DISK
+        value: public
+    autoDeploy: true
+
+  - type: pserv
+    name: colegio-mysql
+    runtime: image
+    image:
+      url: mysql:8.0
+    envVars:
+      - key: MYSQL_DATABASE
+        value: colegio_sistema
+      - key: MYSQL_USER
+        generateValue: true
+      - key: MYSQL_PASSWORD
+        generateValue: true
+      - key: MYSQL_ROOT_PASSWORD
+        generateValue: true
+    disk:
+      name: colegio-mysql-data
+      mountPath: /var/lib/mysql
+      sizeGB: 10
