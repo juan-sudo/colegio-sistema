@@ -27,8 +27,8 @@ WORKDIR /var/www/html
 # Copiar archivos del proyecto
 COPY . .
 
-# Instalar dependencias de PHP
-RUN composer install --no-dev --optimize-autoloader
+# INSTALAR DEPENDENCIAS DE PHP (CORREGIDO)
+RUN composer install --optimize-autoloader --no-interaction
 
 # Instalar dependencias de Node y compilar assets (Tailwind)
 RUN npm install && npm run build
