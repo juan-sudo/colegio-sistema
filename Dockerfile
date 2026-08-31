@@ -9,6 +9,8 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     zip \
     unzip \
+    nodejs \
+    npm \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
     libwebp-dev
@@ -26,19 +28,19 @@ WORKDIR /var/www/html
 COPY . .
 
 # Instalar dependencias de PHP
-RUN composer install --no-dev --optimize-autoloader --no-scripts
+RUN composer install --no-dev --optimize-autoloader
+
+# Instalar dependencias de Node y compilar assets (Tailwind)
+RUN npm install && npm run build
 
 # Cachear configuración
 RUN php artisan config:cache && php artisan route:cache
 
-# Ajustar permisos
+# Configurar permisos
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Script de entrada
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
+# Exponer puerto
 EXPOSE 10000
 
-ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=10000"]
+# Comando de inicio
+CMD php artisan serve --host=0.0.0.0 --port=10000
