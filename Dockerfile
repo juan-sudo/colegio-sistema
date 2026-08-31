@@ -1,12 +1,13 @@
 FROM php:8.2-fpm
 
-# Instalar dependencias del sistema
+# Instalar dependencias del sistema (AGREGADO: libzip-dev)
 RUN apt-get update && apt-get install -y \
     git \
     curl \
     libpng-dev \
     libonig-dev \
     libxml2-dev \
+    libzip-dev \
     zip \
     unzip \
     nodejs \
@@ -15,7 +16,7 @@ RUN apt-get update && apt-get install -y \
     libfreetype6-dev \
     libwebp-dev
 
-# Instalar extensiones de PHP (AGREGADO: zip)
+# Instalar extensiones de PHP
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
 
 # Instalar Composer
@@ -27,7 +28,7 @@ WORKDIR /var/www/html
 # Copiar archivos del proyecto
 COPY . .
 
-# Instalar dependencias de PHP (CON IGNORE PLATFORM REQ)
+# Instalar dependencias de PHP
 RUN composer install --optimize-autoloader --no-interaction --ignore-platform-req=ext-zip
 
 # Instalar dependencias de Node y compilar assets (Tailwind)
