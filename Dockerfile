@@ -19,6 +19,8 @@ COPY . .
 RUN mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/views storage/logs storage/app/public
 RUN chmod -R 775 bootstrap/cache storage
 RUN chown -R www-data:www-data bootstrap/cache storage
+RUN chmod 775 database
+RUN chown www-data:www-data database
 
 # Instalar dependencias de PHP
 RUN composer install --optimize-autoloader --no-interaction --ignore-platform-req=ext-zip
@@ -35,4 +37,4 @@ EXPOSE 10000
 # Nota: config:cache y route:cache se ejecutan al iniciar el contenedor (no en build),
 # porque las variables de entorno reales (APP_KEY, DB_*, etc.) solo estan disponibles
 # en tiempo de ejecucion en Render, no durante el build de la imagen.
-CMD php artisan config:clear && php artisan route:clear && php artisan config:cache && php artisan route:cache && php artisan serve --host=0.0.0.0 --port=10000
+CMD php artisan config:clear && php artisan route:clear && touch database/database.sqlite && chown www-data:www-data database/database.sqlite && php artisan migrate --force && (php artisan db:seed --force || true) && php artisan config:cache && php artisan route:cache && php artisan serve --host=0.0.0.0 --port=10000
