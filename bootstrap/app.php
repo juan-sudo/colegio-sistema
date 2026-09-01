@@ -3,7 +3,6 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,14 +16,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\RoleMiddleware::class,
         ]);
 
+        // Trust Render's reverse proxy so HTTPS/host are detected correctly.
         $middleware->trustProxies(at: '*');
-
-        $middleware->trustHosts(at: [
-            'rkhnmjtq-8000.brs.devtunnels.ms',
-            'rkhnmjtq.brs.devtunnels.ms',
-            'localhost',
-            '127.0.0.1',
-        ]);
 
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
