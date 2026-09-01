@@ -24,6 +24,7 @@ class UpdateStudentRequest extends FormRequest
             "birth_date" => "nullable|date",
             "phone" => "nullable|string",
             "active" => "boolean",
+            "guardian_id" => "nullable|integer|exists:guardians,id",
         ];
     }
 }

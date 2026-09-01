@@ -11,18 +11,20 @@ use App\Models\GradePeriod;
 use App\Models\AssessmentCriterion;
 use App\Models\CriterionGrade;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
 
 class GradeController extends Controller
 {
-    public function index(Course $course)
+    public function index(Course $course): Response
     {
         $periods = GradePeriod::orderBy("start_date")->get();
         $students = $course->students()->orderBy("last_name")->get();
         $grades = Grade::where("course_id", $course->id)->get()->groupBy("student_id");
 
         $criteria = AssessmentCriterion::where('course_id', $course->id)->orderBy('name')->get();
-        return view("teacher.grades.index", compact("course", "periods", "students", "grades", "criteria"));
+        return Inertia::render("Teacher/Grades/Index", compact("course", "periods", "students", "grades", "criteria"));
     }
 
     public function store(StoreGradeRequest $request, Course $course)
@@ -46,9 +48,11 @@ class GradeController extends Controller
         return back()->with("success", "Notas guardadas correctamente.");
     }
 
-    public function importForm(Course $course)
+    public function importForm(Course $course): Response
     {
-        return view("teacher.grades.import", compact("course"));
+        $periods = GradePeriod::orderBy("start_date")->get();
+
+        return Inertia::render("Teacher/Grades/Import", compact("course", "periods"));
     }
 
     public function import(ImportGradesRequest $request, Course $course)

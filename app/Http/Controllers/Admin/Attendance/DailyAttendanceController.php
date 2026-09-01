@@ -5,17 +5,20 @@ namespace App\Http\Controllers\Admin\Attendance;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\Course;
+use App\Models\SchoolSchedule;
 use App\Models\Student;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Services\WhatsAppService;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class DailyAttendanceController extends Controller
 {
     public function __construct(private WhatsAppService $whatsapp) {}
 
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
         $courses = Course::with(['gradeSection', 'teacher'])->get();
         $selectedCourseId = $request->get('course_id');
@@ -46,10 +49,10 @@ class DailyAttendanceController extends Controller
             ];
         }
 
-        return view('admin.attendance.index', compact('courses', 'selectedCourseId', 'date', 'course', 'students', 'attendances', 'stats'));
+        return Inertia::render('Admin/Attendance/Index', compact('courses', 'selectedCourseId', 'date', 'course', 'students', 'attendances', 'stats'));
     }
 
-    public function general(Request $request)
+    public function general(Request $request): Response
     {
         $date = $request->get('date', now()->toDateString());
 
@@ -68,39 +71,24 @@ class DailyAttendanceController extends Controller
             'total' => $students->count(),
         ];
 
-        return view('admin.attendance.general', compact('students', 'attendances', 'stats', 'date'));
-    }
-
-    public function report(Request $request)
-    {
-        $courseId = $request->get('course_id');
-        $date = $request->get('date', now()->toDateString());
-
-        $course = Course::with(['gradeSection', 'teacher'])->findOrFail($courseId);
-        $students = $course->students()->orderBy('last_name')->get();
-
-        $attendances = Attendance::where('course_id', $courseId)
-            ->whereDate('date', $date)
-            ->get()
-            ->keyBy('student_id');
-
-        $stats = [
-            'present' => $attendances->where('status', 'presente')->count(),
-            'late' => $attendances->where('status', 'tardanza')->count(),
-            'absent' => $attendances->where('status', 'falta')->count(),
-            'total' => $students->count(),
+        $schedule = SchoolSchedule::current()?->toHumanArray() ?? [
+            'name' => 'Predeterminado',
+            'entry_window_start' => '07:40',
+            'entry_start' => '08:00',
+            'late_until' => '08:10',
+            'exit_time' => '14:00',
         ];
 
-        return view('admin.attendance.report', compact('course', 'students', 'attendances', 'stats', 'date'));
+        return Inertia::render('Admin/Attendance/General', compact('students', 'attendances', 'stats', 'date', 'schedule'));
     }
 
-    public function scanner(Request $request)
+    public function scanner(Request $request): Response
     {
         $courseId = $request->get('course_id');
-        $course = Course::with(['gradeSection', 'teacher'])->findOrFail($courseId);
+        $course = $courseId ? Course::with(['gradeSection', 'teacher'])->findOrFail($courseId) : null;
         $courses = Course::with(['gradeSection', 'teacher'])->get();
 
-        return view('admin.attendance.scanner', compact('course', 'courses'));
+        return Inertia::render('Admin/Attendance/Scanner', compact('course', 'courses'));
     }
 
     public function registrar(Request $request): JsonResponse
@@ -119,16 +107,8 @@ class DailyAttendanceController extends Controller
             ->firstOrFail();
 
         $ahora = Carbon::now();
-        $horaPresente = Carbon::parse('07:00:00');
-        $horaTarde = Carbon::parse('07:10:00');
-        
-        if ($ahora->lt($horaPresente)) {
-            $status = 'presente';
-        } elseif ($ahora->lte($horaTarde)) {
-            $status = 'tardanza';
-        } else {
-            $status = 'falta';
-        }
+        $schedule = SchoolSchedule::current();
+        $status = $schedule ? $schedule->classify($ahora) : $this->fallbackClassify($ahora);
 
         $courseId = $request->course_id;
         if (!$courseId) {
@@ -181,16 +161,8 @@ class DailyAttendanceController extends Controller
             ->firstOrFail();
 
         $ahora = Carbon::now();
-        $horaPresente = Carbon::parse('07:00:00');
-        $horaTarde = Carbon::parse('07:10:00');
-        
-        if ($ahora->lt($horaPresente)) {
-            $status = 'presente';
-        } elseif ($ahora->lte($horaTarde)) {
-            $status = 'tardanza';
-        } else {
-            $status = 'falta';
-        }
+        $schedule = SchoolSchedule::current();
+        $status = $schedule ? $schedule->classify($ahora) : $this->fallbackClassify($ahora);
 
         $courseId = $student->courses()->first()?->id;
 
@@ -225,20 +197,14 @@ class DailyAttendanceController extends Controller
         ]);
     }
 
-    public function manual(Request $request)
+    public function manual(Request $request): Response
     {
         $courseId = $request->get('course_id');
         $date = $request->get('date', now()->toDateString());
+        $courses = Course::with(['gradeSection', 'teacher'])->get();
+        $course = $courseId ? Course::with(['gradeSection', 'teacher'])->findOrFail($courseId) : null;
 
-        $course = Course::with(['gradeSection', 'teacher'])->findOrFail($courseId);
-        $students = $course->students()->orderBy('last_name')->get();
-
-        $attendances = Attendance::where('course_id', $courseId)
-            ->whereDate('date', $date)
-            ->get()
-            ->keyBy('student_id');
-
-        return view('admin.attendance.manual', compact('course', 'students', 'attendances', 'date'));
+        return Inertia::render('Admin/Attendance/Manual', compact('course', 'courses', 'date'));
     }
 
     public function storeManual(Request $request)
@@ -319,10 +285,20 @@ class DailyAttendanceController extends Controller
             $this->whatsapp->notificarFalta($student, $attendance);
         }
 
-        if ($request->expectsJson()) {
-            return response()->json(['success' => true, 'message' => "Se marcaron {$faltantes->count()} inasistencias y se enviaron las alertas por WhatsApp."]);
-        }
-
         return back()->with('success', "Se marcaron {$faltantes->count()} inasistencias y se enviaron las alertas por WhatsApp.");
+    }
+
+    private function fallbackClassify(Carbon $now): string
+    {
+        $presente = Carbon::parse('07:00:00');
+        $tarde = Carbon::parse('07:10:00');
+
+        if ($now->lt($presente)) {
+            return 'presente';
+        }
+        if ($now->lte($tarde)) {
+            return 'tardanza';
+        }
+        return 'falta';
     }
 }

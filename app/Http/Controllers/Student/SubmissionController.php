@@ -5,17 +5,19 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\StoreSubmissionRequest;
 use App\Models\Assignment;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class SubmissionController extends Controller
 {
-    public function index()
+    public function index(): Response
     {
         $student = auth()->user()->student;
-        $courses = $student->courses()->with(["assignments" => function ($q) {
+        $courses = $student->courses()->with(["gradeSection", "assignments" => function ($q) {
             $q->latest();
         }])->get();
 
-        return view("student.assignments.index", compact("courses"));
+        return Inertia::render("Student/Dashboard", compact("courses"));
     }
 
     public function store(StoreSubmissionRequest $request, Assignment $assignment)

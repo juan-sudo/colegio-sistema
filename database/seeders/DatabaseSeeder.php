@@ -12,6 +12,7 @@ use App\Models\Guardian;
 use App\Models\Payment;
 use App\Models\Schedule;
 use App\Models\SchoolPhase;
+use App\Models\SchoolSchedule;
 use App\Models\Setting;
 use App\Models\Shift;
 use App\Models\Student;
@@ -79,6 +80,15 @@ class DatabaseSeeder extends Seeder
             'subject_id' => $math->id,
             'academic_year_id' => $academicYear->id,
             'school_year' => '2026',
+        ]);
+
+        Schedule::create([
+            'course_id' => $course->id,
+            'shift_id' => $morning->id,
+            'day_of_week' => 'Lunes',
+            'start_time' => '08:00',
+            'end_time' => '09:00',
+            'classroom' => 'Aula 301',
         ]);
 
         GradePeriod::create([
@@ -178,6 +188,17 @@ class DatabaseSeeder extends Seeder
         Setting::set('matricula_amount', '500.00', 'number', 'financial');
         Setting::set('pension_amount', '300.00', 'number', 'financial');
         Setting::set('late_fee_percentage', '5', 'number', 'financial');
+
+        if (! SchoolSchedule::query()->exists()) {
+            SchoolSchedule::create([
+                'name' => 'Turno mañana',
+                'entry_window_start' => '07:40',
+                'entry_start' => '08:00',
+                'late_until' => '08:10',
+                'exit_time' => '14:00',
+                'active' => true,
+            ]);
+        }
 
         $this->command->info('Usuarios de prueba (password para todos: "password"):');
         $this->command->info('Admin:      admin@colegio.test');

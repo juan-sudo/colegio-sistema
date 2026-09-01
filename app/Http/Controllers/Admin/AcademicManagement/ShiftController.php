@@ -7,21 +7,29 @@ use App\Http\Requests\Admin\Academic\StoreShiftRequest;
 use App\Http\Requests\Admin\Academic\UpdateShiftRequest;
 use App\Models\Shift;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class ShiftController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
-        $shifts = Shift::query()
-            ->when($request->search, fn ($q, $s) => $q->where('name', 'like', "%{$s}%"))
-            ->paginate(20);
+        $query = Shift::query()
+            ->when($request->search, fn ($q, $s) => $q->where('name', 'like', "%{$s}%"));
 
-        return view('admin.academic.shifts.index', compact('shifts'));
-    }
+        $shifts = $this->applySort($query, $request, ['name', 'start_time', 'end_time'], 'name')
+            ->paginate($this->perPage($request))
+            ->withQueryString();
 
-    public function create()
-    {
-        return view('admin.academic.shifts.create');
+        return Inertia::render('Admin/Academic/Shifts/Index', [
+            'shifts' => $shifts,
+            'filters' => [
+                'search' => $request->search,
+                'per_page' => $this->perPage($request),
+                'sort_by' => $request->sort_by,
+                'sort_dir' => $request->sort_dir,
+            ],
+        ]);
     }
 
     public function store(StoreShiftRequest $request)
@@ -29,11 +37,6 @@ class ShiftController extends Controller
         Shift::create($request->validated());
 
         return redirect()->route('admin.academic.shifts.index')->with('success', 'Turno creado correctamente.');
-    }
-
-    public function edit(Shift $shift)
-    {
-        return view('admin.academic.shifts.edit', compact('shift'));
     }
 
     public function update(UpdateShiftRequest $request, Shift $shift)

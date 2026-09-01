@@ -7,22 +7,29 @@ use App\Http\Requests\Admin\Academic\StoreSchoolPhaseRequest;
 use App\Http\Requests\Admin\Academic\UpdateSchoolPhaseRequest;
 use App\Models\SchoolPhase;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class SchoolPhaseController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
-        $phases = SchoolPhase::query()
-            ->when($request->search, fn ($q, $s) => $q->where('name', 'like', "%{$s}%"))
-            ->orderBy('order')
-            ->paginate(20);
+        $query = SchoolPhase::query()
+            ->when($request->search, fn ($q, $s) => $q->where('name', 'like', "%{$s}%"));
 
-        return view('admin.academic.phases.index', compact('phases'));
-    }
+        $phases = $this->applySort($query, $request, ['name', 'order'], 'order')
+            ->paginate($this->perPage($request))
+            ->withQueryString();
 
-    public function create()
-    {
-        return view('admin.academic.phases.create');
+        return Inertia::render('Admin/Academic/Phases/Index', [
+            'phases' => $phases,
+            'filters' => [
+                'search' => $request->search,
+                'per_page' => $this->perPage($request),
+                'sort_by' => $request->sort_by,
+                'sort_dir' => $request->sort_dir,
+            ],
+        ]);
     }
 
     public function store(StoreSchoolPhaseRequest $request)
@@ -30,11 +37,6 @@ class SchoolPhaseController extends Controller
         SchoolPhase::create($request->validated());
 
         return redirect()->route('admin.academic.phases.index')->with('success', 'Fase escolar creada correctamente.');
-    }
-
-    public function edit(SchoolPhase $schoolPhase)
-    {
-        return view('admin.academic.phases.edit', compact('schoolPhase'));
     }
 
     public function update(UpdateSchoolPhaseRequest $request, SchoolPhase $schoolPhase)

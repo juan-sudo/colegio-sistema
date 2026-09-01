@@ -6,14 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\AssessmentCriterion;
 use App\Models\Course;
 use App\Models\CriterionGrade;
-use App\Models\EvaluationCriteria;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class GradeController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
-        $courses = Course::with(['gradeSection', 'teacher', 'assessmentCriteria.evaluationCriteria', 'assessmentCriteria.course'])->get();
+        $courses = Course::with(['gradeSection', 'teacher'])->get();
 
         $selectedCourseId = $request->get('course_id');
         $selectedCourse = null;
@@ -34,12 +35,12 @@ class GradeController extends Controller
                 ->keyBy(fn ($item) => $item->assessment_criterion_id . '-' . $item->student_id);
         }
 
-        return view('admin.grades.index', compact(
-            'courses',
-            'selectedCourse',
-            'students',
-            'courseCriteria',
-            'grades'
-        ));
+        return Inertia::render('Admin/Grades/Index', [
+            'courses' => $courses,
+            'selectedCourse' => $selectedCourse,
+            'students' => $students,
+            'courseCriteria' => $courseCriteria,
+            'grades' => $grades,
+        ]);
     }
 }

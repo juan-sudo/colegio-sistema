@@ -7,52 +7,43 @@ use App\Http\Requests\Admin\StoreGradeSectionRequest;
 use App\Http\Requests\Admin\UpdateGradeSectionRequest;
 use App\Models\GradeSection;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class GradeSectionController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
-        $gradeSections = GradeSection::query()
+        $query = GradeSection::query()
             ->when($request->search, fn ($q, $search) => $q->where("name", "like", "%{$search}%")
                 ->orWhere("level", "like", "%{$search}%")
-                ->orWhere("school_year", "like", "%{$search}%"))
-            ->paginate(20);
+                ->orWhere("school_year", "like", "%{$search}%"));
 
-        return view("admin.grade-sections.index", compact("gradeSections"));
-    }
+        $gradeSections = $this->applySort($query, $request, ["name", "level", "school_year"], "name")
+            ->paginate($this->perPage($request))
+            ->withQueryString();
 
-    public function create()
-    {
-        return view("admin.grade-sections.create");
+        return Inertia::render("Admin/GradeSections/Index", [
+            "gradeSections" => $gradeSections,
+            "filters" => [
+                "search" => $request->search,
+                "per_page" => $this->perPage($request),
+                "sort_by" => $request->sort_by,
+                "sort_dir" => $request->sort_dir,
+            ],
+        ]);
     }
 
     public function store(StoreGradeSectionRequest $request)
     {
-        $data = $request->validated();
-
-        $gradeSection = GradeSection::create($data);
-
-        if ($request->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Grado/Sección registrado correctamente.', 'gradeSection' => $gradeSection]);
-        }
+        GradeSection::create($request->validated());
 
         return redirect()->route("admin.grade-sections.index")->with("success", "Grado/Sección registrado correctamente.");
     }
 
-    public function edit(GradeSection $gradeSection)
-    {
-        return view("admin.grade-sections.edit", compact("gradeSection"));
-    }
-
     public function update(UpdateGradeSectionRequest $request, GradeSection $gradeSection)
     {
-        $data = $request->validated();
-
-        $gradeSection->update($data);
-
-        if ($request->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Grado/Sección actualizado correctamente.', 'gradeSection' => $gradeSection]);
-        }
+        $gradeSection->update($request->validated());
 
         return redirect()->route("admin.grade-sections.index")->with("success", "Grado/Sección actualizado correctamente.");
     }
@@ -60,10 +51,6 @@ class GradeSectionController extends Controller
     public function destroy(GradeSection $gradeSection)
     {
         $gradeSection->delete();
-
-        if (request()->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Grado/Sección eliminado correctamente.']);
-        }
 
         return back()->with("success", "Grado/Sección eliminado correctamente.");
     }

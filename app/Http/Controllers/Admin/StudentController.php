@@ -11,27 +11,40 @@ use Endroid\QrCode\QrCode;
 use Endroid\QrCode\Writer\PngWriter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Inertia\Inertia;
+use Inertia\Response;
 use Picqer\Barcode\BarcodeGeneratorPNG;
 
 class StudentController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
-        $students = Student::with(["user", "gradeSection"])
+        $query = Student::with(["user", "gradeSection", "guardians"])
             ->when($request->search, fn ($q, $search) => $q->where("code", "like", "%{$search}%")
                 ->orWhere("dni", "like", "%{$search}%")
                 ->orWhere("first_name", "like", "%{$search}%")
                 ->orWhere("last_name", "like", "%{$search}%"))
-            ->paginate(20);
+            ->when($request->filled("status"), fn ($q) => $q->where("active", $request->boolean("status")));
 
-        $gradeSections = \App\Models\GradeSection::all();
+        $students = $this->applySort($query, $request, ["code", "dni", "first_name", "active"], "first_name")
+            ->paginate($this->perPage($request))
+            ->withQueryString();
 
-        return view("admin.students.index", compact("students", "gradeSections"));
-    }
-
-    public function create()
-    {
-        return view("admin.students.create");
+        return Inertia::render("Admin/Students/Index", [
+            "students" => $students,
+            "gradeSections" => \App\Models\GradeSection::all(["id", "name", "level"]),
+            "guardians" => \App\Models\Guardian::all()->map(fn($guardian) => [
+                "id" => $guardian->id,
+                "label" => $guardian->fullName() . " - " . $guardian->phone_whatsapp,
+            ]),
+            "filters" => [
+                "search" => $request->search,
+                "status" => $request->status,
+                "per_page" => $this->perPage($request),
+                "sort_by" => $request->sort_by,
+                "sort_dir" => $request->sort_dir,
+            ],
+        ]);
     }
 
     public function store(StoreStudentRequest $request)
@@ -62,16 +75,13 @@ class StudentController extends Controller
             "biometric_id" => $data['dni'],
         ]);
 
-        if ($request->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Estudiante registrado correctamente.', 'student' => $student]);
+        if (!empty($data["guardian_id"])) {
+            $student->guardians()->sync([$data["guardian_id"]]);
+        } else {
+            $student->guardians()->detach();
         }
 
         return redirect()->route("admin.students.index")->with("success", "Estudiante registrado correctamente.");
-    }
-
-    public function edit(Student $student)
-    {
-        return view("admin.students.edit", compact("student"));
     }
 
     public function update(UpdateStudentRequest $request, Student $student)
@@ -99,8 +109,10 @@ class StudentController extends Controller
             "phone" => $data["phone"] ?? null,
         ]);
 
-        if ($request->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Estudiante actualizado correctamente.', 'student' => $student]);
+        if (!empty($data["guardian_id"])) {
+            $student->guardians()->sync([$data["guardian_id"]]);
+        } else {
+            $student->guardians()->detach();
         }
 
         return redirect()->route("admin.students.index")->with("success", "Estudiante actualizado correctamente.");
@@ -111,18 +123,16 @@ class StudentController extends Controller
         $student->user->delete();
         $student->delete();
 
-        if (request()->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Estudiante eliminado correctamente.']);
-        }
-
         return back()->with("success", "Estudiante eliminado correctamente.");
     }
 
-    public function carnet(Student $student)
+    public function carnet(Student $student): Response
     {
+        $student->load('gradeSection');
         $showPdf = request()->routeIs('admin.students.carnet.print');
+        $attendanceMethod = \App\Models\Setting::get('attendance_method', 'qr');
 
-        return view("admin.students.carnet", compact("student", "showPdf"));
+        return Inertia::render("Admin/Students/Carnet", compact("student", "showPdf", "attendanceMethod"));
     }
 
     public function carnetPdf(Student $student)
@@ -149,7 +159,7 @@ class StudentController extends Controller
         $schoolPhone = \App\Models\Setting::get('school_phone', '');
 
         $pdf = Pdf::loadView('admin.students.carnet-pdf', compact('student', 'qrBase64', 'barcodeBase64', 'schoolName', 'schoolAddress', 'schoolPhone', 'attendanceMethod'));
-        $pdf->setPaper([0, 0, 243, 153]);
+        $pdf->setPaper([0, 0, 153, 243]);
         $pdf->setOptions([
             'isHtml5ParserEnabled' => true,
             'isRemoteEnabled' => true,

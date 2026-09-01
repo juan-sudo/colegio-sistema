@@ -6,28 +6,36 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class UserController extends Controller
 {
-    public function index(Request $request)
+    protected array $roles = ["admin", "teacher", "student", "parent"];
+
+    public function index(Request $request): Response
     {
-        $users = User::query()
+        $query = User::query()
             ->when($request->search, fn ($q, $search) => $q->where("name", "like", "%{$search}%")
                 ->orWhere("email", "like", "%{$search}%")
                 ->orWhere("role", "like", "%{$search}%"))
-            ->orderBy("name")
-            ->paginate(20);
+            ->when($request->filled("status"), fn ($q) => $q->where("active", $request->boolean("status")));
 
-        $roles = ["admin", "teacher", "student", "parent"];
+        $users = $this->applySort($query, $request, ["name", "email", "role", "phone", "active"], "name")
+            ->paginate($this->perPage($request))
+            ->withQueryString();
 
-        return view("admin.users.index", compact("users", "roles"));
-    }
-
-    public function create()
-    {
-        $roles = ["admin", "teacher", "student", "parent"];
-
-        return view("admin.users.create", compact("roles"));
+        return Inertia::render("Admin/Users/Index", [
+            "users" => $users,
+            "roles" => $this->roles,
+            "filters" => [
+                "search" => $request->search,
+                "status" => $request->status,
+                "per_page" => $this->perPage($request),
+                "sort_by" => $request->sort_by,
+                "sort_dir" => $request->sort_dir,
+            ],
+        ]);
     }
 
     public function store(Request $request)
@@ -41,23 +49,12 @@ class UserController extends Controller
             "active" => "boolean",
         ]);
 
-        $data["active"] = $request->has("active");
+        $data["active"] = $request->boolean("active");
         $data["password"] = Hash::make($data["password"]);
 
-        $user = User::create($data);
-
-        if ($request->expectsJson()) {
-            return response()->json(["success" => true, "message" => "Usuario registrado correctamente.", "user" => $user]);
-        }
+        User::create($data);
 
         return redirect()->route("admin.users.index")->with("success", "Usuario registrado correctamente.");
-    }
-
-    public function edit(User $user)
-    {
-        $roles = ["admin", "teacher", "student", "parent"];
-
-        return view("admin.users.edit", compact("user", "roles"));
     }
 
     public function update(Request $request, User $user)
@@ -71,7 +68,7 @@ class UserController extends Controller
             "active" => "boolean",
         ]);
 
-        $data["active"] = $request->has("active");
+        $data["active"] = $request->boolean("active");
 
         if (!empty($data["password"])) {
             $data["password"] = Hash::make($data["password"]);
@@ -81,10 +78,6 @@ class UserController extends Controller
 
         $user->update($data);
 
-        if ($request->expectsJson()) {
-            return response()->json(["success" => true, "message" => "Usuario actualizado correctamente.", "user" => $user]);
-        }
-
         return redirect()->route("admin.users.index")->with("success", "Usuario actualizado correctamente.");
     }
 
@@ -92,20 +85,12 @@ class UserController extends Controller
     {
         $user->delete();
 
-        if (request()->expectsJson()) {
-            return response()->json(["success" => true, "message" => "Usuario eliminado correctamente."]);
-        }
-
         return back()->with("success", "Usuario eliminado correctamente.");
     }
 
     public function toggleActive(User $user)
     {
         $user->update(["active" => !$user->active]);
-
-        if (request()->expectsJson()) {
-            return response()->json(["success" => true, "message" => $user->active ? "Usuario activado correctamente." : "Usuario desactivado correctamente."]);
-        }
 
         return back()->with("success", $user->active ? "Usuario activado correctamente." : "Usuario desactivado correctamente.");
     }

@@ -1,40 +1,49 @@
-FROM php:8.2-fpm
+FROM php:8.2-cli
 
-# Instalar dependencias del sistema (AGREGADO: libzip-dev)
-RUN apt-get update && apt-get install -y git curl libpng-dev libonig-dev libxml2-dev libzip-dev zip unzip nodejs npm libjpeg62-turbo-dev libfreetype6-dev libwebp-dev
-
-# Instalar extensiones de PHP
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
-
-# Instalar Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# Establecer directorio de trabajo
 WORKDIR /var/www/html
 
-# Copiar archivos del proyecto
-COPY . .
+# Instalar dependencias del sistema
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    unzip \
+    zip \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    libzip-dev \
+    libjpeg62-turbo-dev \
+    libfreetype6-dev \
+    libwebp-dev \
+    ca-certificates \
+    gnupg \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Crear carpetas necesarias para Laravel (excluidas del build por .dockerignore)
-RUN mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/views storage/logs storage/app/public
-RUN chmod -R 775 bootstrap/cache storage
-RUN chown -R www-data:www-data bootstrap/cache storage
-RUN chmod 775 database
-RUN chown www-data:www-data database
+# Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Instalar dependencias de PHP
-RUN composer install --optimize-autoloader --no-interaction --ignore-platform-req=ext-zip
+# Copiar proyecto
+COPY . /var/www/html
 
-# Instalar dependencias de Node y compilar assets (Tailwind)
-RUN npm install && npm run build
+# Laravel necesita estas carpetas creadas y con permisos antes de composer install
+RUN mkdir -p /var/www/html/bootstrap/cache /var/www/html/storage/framework/cache /var/www/html/storage/framework/sessions /var/www/html/storage/framework/views /var/www/html/storage/logs \
+    && chmod -R 775 /var/www/html/bootstrap/cache /var/www/html/storage \
+    && chown -R www-data:www-data /var/www/html/bootstrap/cache /var/www/html/storage /var/www/html/public
 
-# Configurar permisos
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+# Dependencias PHP + assets frontend
+RUN composer install --no-interaction --prefer-dist --no-progress --optimize-autoloader --no-dev \
+    && npm install \
+    && npm run build \
+    && php artisan config:cache \
+    && php artisan route:cache \
+    && php artisan view:cache \
+    && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/public
 
-# Exponer puerto
 EXPOSE 10000
 
-# Nota: config:cache y route:cache se ejecutan al iniciar el contenedor (no en build),
-# porque las variables de entorno reales (APP_KEY, DB_*, etc.) solo estan disponibles
-# en tiempo de ejecucion en Render, no durante el build de la imagen.
-CMD php artisan config:clear && php artisan route:clear && touch database/database.sqlite && chown www-data:www-data database/database.sqlite && php artisan migrate --force && (php artisan db:seed --force || true) && php artisan config:cache && php artisan route:cache && php artisan serve --host=0.0.0.0 --port=10000
+CMD ["bash", "-c", "php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=${PORT:-10000}"]

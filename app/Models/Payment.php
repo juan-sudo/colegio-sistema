@@ -19,6 +19,8 @@ class Payment extends Model
         'paid_date' => 'date',
     ];
 
+    protected $appends = ['balance', 'is_overdue'];
+
     public function student()
     {
         return $this->belongsTo(Student::class);

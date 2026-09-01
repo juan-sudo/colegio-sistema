@@ -7,22 +7,29 @@ use App\Http\Requests\Admin\Academic\StoreAcademicYearRequest;
 use App\Http\Requests\Admin\Academic\UpdateAcademicYearRequest;
 use App\Models\AcademicYear;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class AcademicYearController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
-        $years = AcademicYear::query()
-            ->when($request->search, fn ($q, $s) => $q->where('name', 'like', "%{$s}%"))
-            ->orderByDesc('start_date')
-            ->paginate(20);
+        $query = AcademicYear::query()
+            ->when($request->search, fn ($q, $s) => $q->where('name', 'like', "%{$s}%"));
 
-        return view('admin.academic.years.index', compact('years'));
-    }
+        $years = $this->applySort($query, $request, ['name', 'start_date', 'end_date', 'is_current'], 'start_date', 'desc')
+            ->paginate($this->perPage($request))
+            ->withQueryString();
 
-    public function create()
-    {
-        return view('admin.academic.years.create');
+        return Inertia::render('Admin/Academic/Years/Index', [
+            'years' => $years,
+            'filters' => [
+                'search' => $request->search,
+                'per_page' => $this->perPage($request),
+                'sort_by' => $request->sort_by,
+                'sort_dir' => $request->sort_dir,
+            ],
+        ]);
     }
 
     public function store(StoreAcademicYearRequest $request)
@@ -36,11 +43,6 @@ class AcademicYearController extends Controller
         AcademicYear::create($data);
 
         return redirect()->route('admin.academic.years.index')->with('success', 'Año escolar creado correctamente.');
-    }
-
-    public function edit(AcademicYear $academicYear)
-    {
-        return view('admin.academic.years.edit', compact('academicYear'));
     }
 
     public function update(UpdateAcademicYearRequest $request, AcademicYear $academicYear)

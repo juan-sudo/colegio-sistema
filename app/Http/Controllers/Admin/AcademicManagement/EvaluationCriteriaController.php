@@ -11,31 +11,32 @@ use App\Models\CriterionGrade;
 use App\Models\EvaluationCriteria;
 use App\Models\Student;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class EvaluationCriteriaController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
         $criteria = EvaluationCriteria::query()
             ->when($request->search, fn ($q, $s) => $q->where('name', 'like', "%{$s}%"))
-            ->with(['assessmentCriteria' => fn ($q) => $q->with('course')])
-            ->paginate(20);
+            ->with(['assessmentCriteria' => fn ($q) => $q->with('course.gradeSection')])
+            ->paginate($this->perPage($request))
+            ->withQueryString();
 
         foreach ($criteria as $criterion) {
             foreach ($criterion->assessmentCriteria as $ac) {
-                $ac->students = $ac->course->students()->orderBy('last_name')->get();
-                $ac->grades = CriterionGrade::where('assessment_criterion_id', $ac->id)
+                $ac->setAttribute('students', $ac->course->students()->orderBy('last_name')->get());
+                $ac->setAttribute('grades', CriterionGrade::where('assessment_criterion_id', $ac->id)
                     ->get()
-                    ->keyBy('student_id');
+                    ->keyBy('student_id'));
             }
         }
 
-        return view('admin.academic.evaluation-criteria.index', compact('criteria'));
-    }
-
-    public function create()
-    {
-        return view('admin.academic.evaluation-criteria.create');
+        return Inertia::render('Admin/Academic/EvaluationCriteria/Index', [
+            'criteria' => $criteria,
+            'filters' => ['search' => $request->search, 'per_page' => $this->perPage($request)],
+        ]);
     }
 
     public function store(StoreEvaluationCriteriaRequest $request)
@@ -43,11 +44,6 @@ class EvaluationCriteriaController extends Controller
         EvaluationCriteria::create($request->validated());
 
         return redirect()->route('admin.academic.evaluation-criteria.index')->with('success', 'Criterio de evaluación creado correctamente.');
-    }
-
-    public function edit(EvaluationCriteria $evaluationCriterion)
-    {
-        return view('admin.academic.evaluation-criteria.edit', compact('evaluationCriterion'));
     }
 
     public function update(UpdateEvaluationCriteriaRequest $request, EvaluationCriteria $evaluationCriterion)
@@ -64,9 +60,8 @@ class EvaluationCriteriaController extends Controller
         return back()->with('success', 'Criterio de evaluación eliminado correctamente.');
     }
 
-    public function grades(Request $request, EvaluationCriteria $evaluationCriterion)
+    public function grades(Request $request, EvaluationCriteria $evaluationCriterion): Response
     {
-        $courses = Course::with(['gradeSection', 'teacher'])->get();
         $courseId = $request->get('course_id');
 
         if ($courseId) {
@@ -90,14 +85,24 @@ class EvaluationCriteriaController extends Controller
                 ->get()
                 ->keyBy('student_id');
 
-            return view('admin.academic.evaluation-criteria.grades', compact(
-                'evaluationCriterion', 'course', 'students', 'grades', 'assessmentCriterion'
-            ));
+            return Inertia::render('Admin/Academic/EvaluationCriteria/Grades', [
+                'evaluationCriterion' => $evaluationCriterion,
+                'course' => $course,
+                'students' => $students,
+                'grades' => $grades,
+                'assessmentCriterion' => $assessmentCriterion,
+                'courses' => [],
+            ]);
         }
 
-        return view('admin.academic.evaluation-criteria.select-course', compact(
-            'evaluationCriterion', 'courses'
-        ));
+        return Inertia::render('Admin/Academic/EvaluationCriteria/Grades', [
+            'evaluationCriterion' => $evaluationCriterion,
+            'course' => null,
+            'students' => [],
+            'grades' => [],
+            'assessmentCriterion' => null,
+            'courses' => Course::with(['gradeSection', 'teacher'])->get(),
+        ]);
     }
 
     public function storeGrades(Request $request, EvaluationCriteria $evaluationCriterion)

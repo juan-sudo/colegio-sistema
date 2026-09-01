@@ -7,11 +7,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Accounting\StoreAccountingEntryRequest;
 use App\Models\AccountingEntry;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
 
 class AccountingController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
         $query = AccountingEntry::query();
 
@@ -25,18 +27,25 @@ class AccountingController extends Controller
             $query->whereDate('date', '<=', $request->date_to);
         }
 
-        $entries = $query->orderByDesc('date')->paginate(20);
-
         $totalIncome = (clone $query)->income()->sum('amount');
         $totalExpense = (clone $query)->expense()->sum('amount');
         $totalFixedCost = (clone $query)->fixedCost()->sum('amount');
 
-        return view('admin.accounting.index', compact('entries', 'totalIncome', 'totalExpense', 'totalFixedCost'));
-    }
+        $entries = $this->applySort($query, $request, ['date', 'type', 'category', 'description', 'amount'], 'date', 'desc')
+            ->paginate($this->perPage($request))
+            ->withQueryString();
 
-    public function create()
-    {
-        return view('admin.accounting.create');
+        return Inertia::render('Admin/Accounting/Index', [
+            'entries' => $entries,
+            'totalIncome' => $totalIncome,
+            'totalExpense' => $totalExpense,
+            'totalFixedCost' => $totalFixedCost,
+            'filters' => $request->only(['type', 'date_from', 'date_to']) + [
+                'per_page' => $this->perPage($request),
+                'sort_by' => $request->sort_by,
+                'sort_dir' => $request->sort_dir,
+            ],
+        ]);
     }
 
     public function store(StoreAccountingEntryRequest $request)
@@ -44,11 +53,6 @@ class AccountingController extends Controller
         AccountingEntry::create($request->validated());
 
         return redirect()->route('admin.accounting.index')->with('success', 'Asiento contable registrado correctamente.');
-    }
-
-    public function edit(AccountingEntry $accountingEntry)
-    {
-        return view('admin.accounting.edit', compact('accountingEntry'));
     }
 
     public function update(Request $request, AccountingEntry $accountingEntry)

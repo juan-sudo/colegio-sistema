@@ -9,14 +9,18 @@ use App\Models\Student;
 use App\Services\WhatsAppService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class AttendanceController extends Controller
 {
     public function __construct(private WhatsAppService $whatsapp) {}
 
-    public function scanner(Course $course)
+    public function scanner(Course $course): Response
     {
-        return view("teacher.attendance.scanner", compact("course"));
+        $course->load('gradeSection');
+
+        return Inertia::render("Teacher/Attendance/Scanner", compact("course"));
     }
 
     public function registrar(MarkAttendanceRequest $request, Course $course)

@@ -5,12 +5,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class LoginController extends Controller
 {
-    public function showLoginForm()
+    public function showLoginForm(): Response
     {
-        return view("auth.login");
+        return Inertia::render('Auth/Login');
     }
 
     public function login(LoginRequest $request)

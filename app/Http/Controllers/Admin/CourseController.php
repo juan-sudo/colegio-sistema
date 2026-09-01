@@ -7,63 +7,48 @@ use App\Http\Requests\Admin\StoreCourseRequest;
 use App\Http\Requests\Admin\UpdateCourseRequest;
 use App\Models\Course;
 use App\Models\GradeSection;
+use App\Models\Subject;
 use App\Models\Teacher;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class CourseController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
-        $courses = Course::with(["gradeSection", "teacher"])
+        $query = Course::with(["gradeSection", "subject", "teacher"])
             ->when($request->search, fn ($q, $search) => $q->where("name", "like", "%{$search}%")
-                ->orWhere("school_year", "like", "%{$search}%"))
-            ->paginate(20);
+                ->orWhere("school_year", "like", "%{$search}%"));
 
-        $gradeSections = GradeSection::all();
-        $teachers = Teacher::with("user")->get();
+        $courses = $this->applySort($query, $request, ["name", "school_year"], "name")
+            ->paginate($this->perPage($request))
+            ->withQueryString();
 
-        return view("admin.courses.index", compact("courses", "gradeSections", "teachers"));
-    }
-
-    public function create()
-    {
-        return view("admin.courses.create", [
-            "gradeSections" => GradeSection::all(),
+        return Inertia::render("Admin/Courses/Index", [
+            "courses" => $courses,
+            "gradeSections" => GradeSection::all(["id", "name", "level"]),
+            "subjects" => Subject::all(["id", "name"]),
             "teachers" => Teacher::with("user")->get(),
+            "filters" => [
+                "search" => $request->search,
+                "per_page" => $this->perPage($request),
+                "sort_by" => $request->sort_by,
+                "sort_dir" => $request->sort_dir,
+            ],
         ]);
     }
 
     public function store(StoreCourseRequest $request)
     {
-        $data = $request->validated();
-
-        $course = Course::create($data);
-
-        if ($request->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Curso registrado correctamente.', 'course' => $course]);
-        }
+        Course::create($request->validated());
 
         return redirect()->route("admin.courses.index")->with("success", "Curso registrado correctamente.");
     }
 
-    public function edit(Course $course)
-    {
-        return view("admin.courses.edit", [
-            "course" => $course,
-            "gradeSections" => GradeSection::all(),
-            "teachers" => Teacher::with("user")->get(),
-        ]);
-    }
-
     public function update(UpdateCourseRequest $request, Course $course)
     {
-        $data = $request->validated();
-
-        $course->update($data);
-
-        if ($request->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Curso actualizado correctamente.', 'course' => $course]);
-        }
+        $course->update($request->validated());
 
         return redirect()->route("admin.courses.index")->with("success", "Curso actualizado correctamente.");
     }
@@ -71,10 +56,6 @@ class CourseController extends Controller
     public function destroy(Course $course)
     {
         $course->delete();
-
-        if (request()->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Curso eliminado correctamente.']);
-        }
 
         return back()->with("success", "Curso eliminado correctamente.");
     }

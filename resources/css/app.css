@@ -1,1 +1,106 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
+
+/* Dark mode is toggled via a `dark` class on <html> (see AppLayout.vue), not OS
+   preference, so `dark:` utilities must key off that class instead of Tailwind's
+   default `prefers-color-scheme` media query. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+    --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+    /* Brand: deep cobalt blue — distinctive from stock Tailwind indigo */
+    --color-brand-50: oklch(0.97 0.02 250);
+    --color-brand-100: oklch(0.93 0.04 250);
+    --color-brand-200: oklch(0.86 0.07 250);
+    --color-brand-300: oklch(0.77 0.11 250);
+    --color-brand-400: oklch(0.66 0.15 253);
+    --color-brand-500: oklch(0.56 0.18 256);
+    --color-brand-600: oklch(0.47 0.18 258);
+    --color-brand-700: oklch(0.39 0.16 259);
+    --color-brand-800: oklch(0.32 0.13 260);
+    --color-brand-900: oklch(0.26 0.10 260);
+    --color-brand-950: oklch(0.18 0.07 261);
+
+    /* Semantic status colors */
+    --color-success-50: oklch(0.97 0.03 155);
+    --color-success-100: oklch(0.92 0.06 155);
+    --color-success-600: oklch(0.55 0.15 155);
+    --color-success-700: oklch(0.46 0.14 155);
+    --color-success-800: oklch(0.38 0.12 155);
+
+    --color-danger-50: oklch(0.97 0.02 25);
+    --color-danger-100: oklch(0.92 0.05 25);
+    --color-danger-600: oklch(0.55 0.20 25);
+    --color-danger-700: oklch(0.47 0.19 25);
+    --color-danger-800: oklch(0.39 0.17 25);
+
+    --color-warning-50: oklch(0.97 0.04 90);
+    --color-warning-100: oklch(0.92 0.08 90);
+    --color-warning-600: oklch(0.65 0.16 80);
+    --color-warning-700: oklch(0.55 0.15 75);
+    --color-warning-800: oklch(0.45 0.13 70);
+
+    --color-info-50: oklch(0.97 0.02 235);
+    --color-info-100: oklch(0.92 0.05 235);
+    --color-info-600: oklch(0.55 0.14 235);
+    --color-info-700: oklch(0.47 0.13 235);
+    --color-info-800: oklch(0.39 0.11 235);
+
+    --color-surface: oklch(0.99 0.002 250);
+    --color-surface-muted: oklch(0.97 0.004 250);
+    --color-border: oklch(0.90 0.006 250);
+}
+
+@layer base {
+    :root {
+        color-scheme: light;
+        --color-surface: oklch(0.99 0.002 250);
+        --color-surface-muted: oklch(0.97 0.004 250);
+        --color-border: oklch(0.90 0.006 250);
+    }
+
+    html.dark {
+        color-scheme: dark;
+        --color-surface: oklch(0.18 0.02 250);
+        --color-surface-muted: oklch(0.22 0.02 250);
+        --color-border: oklch(0.33 0.02 250);
+    }
+
+    body {
+        @apply bg-surface-muted text-slate-800 antialiased transition-colors duration-200;
+    }
+
+    html.dark body {
+        @apply bg-surface-muted text-slate-100;
+    }
+
+    html.dark .bg-surface {
+        background-color: var(--color-surface);
+    }
+
+    html.dark .bg-surface-muted {
+        background-color: var(--color-surface-muted);
+    }
+
+    html.dark .border-border {
+        border-color: var(--color-border);
+    }
+}
+
+/*
+ * Tailwind's own `.text-slate-*` utilities live in the `utilities` layer, which
+ * always outranks `@layer base` regardless of selector specificity — so a base-layer
+ * override could never win here. This block lives in `utilities` too so normal
+ * specificity applies and `html.dark .text-slate-900` beats plain `.text-slate-900`.
+ */
+@layer utilities {
+    html.dark .text-slate-900,
+    html.dark .text-slate-800,
+    html.dark .text-slate-700,
+    html.dark .text-slate-600,
+    html.dark .text-slate-500,
+    html.dark .text-slate-400 {
+        color: rgb(226 232 240);
+    }
+}

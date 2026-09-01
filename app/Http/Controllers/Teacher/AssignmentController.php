@@ -7,13 +7,15 @@ use App\Http\Requests\Teacher\StoreAssignmentRequest;
 use App\Models\Assignment;
 use App\Models\Course;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class AssignmentController extends Controller
 {
-    public function index(Course $course)
+    public function index(Course $course): Response
     {
         $assignments = $course->assignments()->withCount("submissions")->latest()->get();
-        return view("teacher.assignments.index", compact("course", "assignments"));
+        return Inertia::render("Teacher/Assignments/Index", compact("course", "assignments"));
     }
 
     public function store(StoreAssignmentRequest $request, Course $course)
@@ -32,10 +34,10 @@ class AssignmentController extends Controller
         return back()->with("success", "Tarea publicada correctamente.");
     }
 
-    public function submissions(Assignment $assignment)
+    public function submissions(Assignment $assignment): Response
     {
         $submissions = $assignment->submissions()->with("student")->get();
-        return view("teacher.assignments.submissions", compact("assignment", "submissions"));
+        return Inertia::render("Teacher/Assignments/Submissions", compact("assignment", "submissions"));
     }
 
     public function grade(GradeSubmissionRequest $request, \App\Models\Submission $submission)

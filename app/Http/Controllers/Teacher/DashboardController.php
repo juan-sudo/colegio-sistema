@@ -3,15 +3,15 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
-use App\Models\Course;
-use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(): Response
     {
-        $courses = auth()->user()->teacher->courses;
+        $courses = auth()->user()->teacher->courses()->with('gradeSection')->get();
 
-        return view("teacher.dashboard", compact("courses"));
+        return Inertia::render('Teacher/Dashboard', compact('courses'));
     }
 }

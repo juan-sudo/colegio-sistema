@@ -22,6 +22,7 @@ class StoreStudentRequest extends FormRequest
             "grade_section_id" => "required|exists:grade_sections,id",
             "birth_date" => "nullable|date",
             "phone" => "nullable|string",
+            "guardian_id" => "nullable|integer|exists:guardians,id",
         ];
     }
 }

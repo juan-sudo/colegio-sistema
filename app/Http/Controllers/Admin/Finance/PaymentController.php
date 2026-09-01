@@ -8,11 +8,13 @@ use App\Http\Requests\Admin\Payment\StorePaymentRequest;
 use App\Models\Payment;
 use App\Models\Student;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
 
 class PaymentController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
         $query = Payment::with('student');
 
@@ -26,15 +28,18 @@ class PaymentController extends Controller
             $query->where('status', $request->status);
         }
 
-        $payments = $query->orderByDesc('due_date')->paginate(20);
+        $payments = $this->applySort($query, $request, ['type', 'amount', 'paid', 'due_date', 'status'], 'due_date', 'desc')
+            ->paginate($this->perPage($request))
+            ->withQueryString();
 
-        return view('admin.payments.index', compact('payments'));
-    }
-
-    public function create()
-    {
-        return view('admin.payments.create', [
+        return Inertia::render('Admin/Payments/Index', [
+            'payments' => $payments,
             'students' => Student::with('user')->get(),
+            'filters' => $request->only(['type', 'status']) + [
+                'per_page' => $this->perPage($request),
+                'sort_by' => $request->sort_by,
+                'sort_dir' => $request->sort_dir,
+            ],
         ]);
     }
 
@@ -43,14 +48,6 @@ class PaymentController extends Controller
         Payment::create($request->validated());
 
         return redirect()->route('admin.payments.index')->with('success', 'Pago registrado correctamente.');
-    }
-
-    public function edit(Payment $payment)
-    {
-        return view('admin.payments.edit', [
-            'payment' => $payment,
-            'students' => Student::with('user')->get(),
-        ]);
     }
 
     public function update(Request $request, Payment $payment)

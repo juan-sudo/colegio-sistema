@@ -8,15 +8,8 @@ class Subject extends Model
 {
     protected $fillable = ['name', 'code', 'description'];
 
-    public function gradeSections()
+    public function courses()
     {
-        return $this->belongsToMany(GradeSection::class, 'grade_section_subject')
-            ->withPivot('teacher_id', 'hours_per_week')
-            ->withTimestamps();
-    }
-
-    public function schedules()
-    {
-        return $this->hasMany(Schedule::class);
+        return $this->hasMany(Course::class);
     }
 }

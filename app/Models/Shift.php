@@ -8,11 +8,6 @@ class Shift extends Model
 {
     protected $fillable = ['name', 'start_time', 'end_time'];
 
-    protected $casts = [
-        'start_time' => 'time',
-        'end_time' => 'time',
-    ];
-
     public function schedules()
     {
         return $this->hasMany(Schedule::class);

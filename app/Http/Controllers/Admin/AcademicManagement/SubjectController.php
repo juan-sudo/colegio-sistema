@@ -7,22 +7,30 @@ use App\Http\Requests\Admin\Academic\StoreSubjectRequest;
 use App\Http\Requests\Admin\Academic\UpdateSubjectRequest;
 use App\Models\Subject;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class SubjectController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
-        $subjects = Subject::query()
+        $query = Subject::query()
             ->when($request->search, fn ($q, $s) => $q->where('name', 'like', "%{$s}%")
-                ->orWhere('code', 'like', "%{$s}%"))
-            ->paginate(20);
+                ->orWhere('code', 'like', "%{$s}%"));
 
-        return view('admin.academic.subjects.index', compact('subjects'));
-    }
+        $subjects = $this->applySort($query, $request, ['name', 'code'], 'name')
+            ->paginate($this->perPage($request))
+            ->withQueryString();
 
-    public function create()
-    {
-        return view('admin.academic.subjects.create');
+        return Inertia::render('Admin/Academic/Subjects/Index', [
+            'subjects' => $subjects,
+            'filters' => [
+                'search' => $request->search,
+                'per_page' => $this->perPage($request),
+                'sort_by' => $request->sort_by,
+                'sort_dir' => $request->sort_dir,
+            ],
+        ]);
     }
 
     public function store(StoreSubjectRequest $request)
@@ -30,11 +38,6 @@ class SubjectController extends Controller
         Subject::create($request->validated());
 
         return redirect()->route('admin.academic.subjects.index')->with('success', 'Materia creada correctamente.');
-    }
-
-    public function edit(Subject $subject)
-    {
-        return view('admin.academic.subjects.edit', compact('subject'));
     }
 
     public function update(UpdateSubjectRequest $request, Subject $subject)

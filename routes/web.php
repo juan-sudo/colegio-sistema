@@ -3,10 +3,11 @@
 use App\Http\Controllers\Admin\AcademicManagement\AcademicYearController;
 use App\Http\Controllers\Admin\AcademicManagement\EnrollmentController;
 use App\Http\Controllers\Admin\AcademicManagement\EvaluationCriteriaController;
-use App\Http\Controllers\Admin\AcademicManagement\ScheduleController;
 use App\Http\Controllers\Admin\AcademicManagement\SchoolPhaseController;
 use App\Http\Controllers\Admin\AcademicManagement\ShiftController;
 use App\Http\Controllers\Admin\AcademicManagement\SubjectController;
+use App\Http\Controllers\Admin\Academic\ScheduleController;
+use App\Http\Controllers\Admin\Academic\SchoolScheduleController;
 use App\Http\Controllers\Admin\AccountingController;
 use App\Http\Controllers\Admin\Attendance\DailyAttendanceController;
 use App\Http\Controllers\Admin\CourseController;
@@ -37,33 +38,35 @@ Route::post("/logout", [LoginController::class, "logout"])->name("logout");
 Route::middleware(["auth", "role:admin"])->prefix("admin")->name("admin.")->group(function () {
     Route::get("/dashboard", [AdminDashboard::class, "index"])->name("dashboard");
 
-    Route::resource("students", StudentController::class);
-    Route::resource("teachers", TeacherController::class);
-    Route::resource("guardians", GuardianController::class);
-    Route::resource("courses", CourseController::class);
-    Route::resource("grade-sections", GradeSectionController::class);
-    Route::resource("users", \App\Http\Controllers\Admin\UserController::class);
+    Route::resource("students", StudentController::class)->except(["create", "edit"]);
+    Route::resource("teachers", TeacherController::class)->except(["create", "edit"]);
+    Route::resource("guardians", GuardianController::class)->except(["create", "edit"]);
+    Route::resource("courses", CourseController::class)->except(["create", "edit"]);
+    Route::resource("grade-sections", GradeSectionController::class)->except(["create", "edit"]);
+    Route::resource("users", \App\Http\Controllers\Admin\UserController::class)->except(["create", "edit"]);
     Route::post("/users/{user}/toggle-active", [\App\Http\Controllers\Admin\UserController::class, "toggleActive"])->name("users.toggle-active");
     Route::get("/students/{student}/carnet", [StudentController::class, "carnet"])->name("students.carnet");
     Route::get("/students/{student}/carnet/print", [StudentController::class, "carnet"])->name("students.carnet.print")->whereNumber('student');
     Route::get("/students/{student}/carnet/pdf", [StudentController::class, "carnetPdf"])->name("students.carnet.pdf")->whereNumber('student');
 
     Route::prefix("academic")->name("academic.")->group(function () {
-        Route::resource("years", AcademicYearController::class);
-        Route::resource("phases", SchoolPhaseController::class);
-        Route::resource("shifts", ShiftController::class);
-        Route::resource("subjects", SubjectController::class);
-        Route::resource("evaluation-criteria", EvaluationCriteriaController::class);
+        Route::resource("years", AcademicYearController::class)->except(["create", "edit"]);
+        Route::resource("phases", SchoolPhaseController::class)->except(["create", "edit"]);
+        Route::resource("shifts", ShiftController::class)->except(["create", "edit"]);
+        Route::resource("subjects", SubjectController::class)->except(["create", "edit"]);
+        Route::resource("evaluation-criteria", EvaluationCriteriaController::class)->except(["create", "edit"]);
         Route::get("evaluation-criteria/{evaluationCriterion}/grades", [EvaluationCriteriaController::class, "grades"])->name("evaluation-criteria.grades");
         Route::post("evaluation-criteria/{evaluationCriterion}/grades", [EvaluationCriteriaController::class, "storeGrades"])->name("evaluation-criteria.store-grades");
         Route::post("assessment-criteria/{assessmentCriterion}/grades", [EvaluationCriteriaController::class, "storeGradesByAssessment"])->name("assessment-criteria.store-grades");
-        Route::resource("schedules", ScheduleController::class);
+        Route::resource("schedules", ScheduleController::class)->except(["create", "edit"]);
+        Route::get("school-schedule", [SchoolScheduleController::class, "index"])->name("school-schedule.index");
+        Route::put("school-schedule/{schoolSchedule}", [SchoolScheduleController::class, "update"])->name("school-schedule.update");
     });
 
-    Route::resource("enrollments", EnrollmentController::class);
-    Route::resource("payments", PaymentController::class);
+    Route::resource("enrollments", EnrollmentController::class)->except(["create", "edit"]);
+    Route::resource("payments", PaymentController::class)->except(["create", "edit"]);
     Route::get("/payments/export", [PaymentController::class, "export"])->name("payments.export");
-    Route::resource("accounting", FinanceAccountingController::class);
+    Route::resource("accounting", FinanceAccountingController::class)->except(["create", "edit"]);
     Route::get("/accounting/export", [FinanceAccountingController::class, "export"])->name("accounting.export");
     Route::get("/settings", [SettingController::class, "index"])->name("settings.index");
     Route::put("/settings", [SettingController::class, "update"])->name("settings.update");

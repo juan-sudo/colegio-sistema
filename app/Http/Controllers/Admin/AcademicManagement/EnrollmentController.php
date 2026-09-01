@@ -9,27 +9,32 @@ use App\Models\Enrollment;
 use App\Models\GradeSection;
 use App\Models\Student;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class EnrollmentController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
-        $enrollments = Enrollment::with(['student', 'gradeSection', 'academicYear'])
+        $query = Enrollment::with(['student', 'gradeSection', 'academicYear'])
             ->when($request->academic_year_id, fn ($q, $id) => $q->where('academic_year_id', $id))
             ->when($request->grade_section_id, fn ($q, $id) => $q->where('grade_section_id', $id))
-            ->when($request->status, fn ($q, $s) => $q->where('status', $s))
-            ->orderByDesc('enrollment_date')
-            ->paginate(20);
+            ->when($request->status, fn ($q, $s) => $q->where('status', $s));
 
-        return view('admin.enrollments.index', compact('enrollments'));
-    }
+        $enrollments = $this->applySort($query, $request, ['status', 'enrollment_date'], 'enrollment_date', 'desc')
+            ->paginate($this->perPage($request))
+            ->withQueryString();
 
-    public function create()
-    {
-        return view('admin.enrollments.create', [
+        return Inertia::render('Admin/Enrollments/Index', [
+            'enrollments' => $enrollments,
             'students' => Student::with('user')->get(),
-            'gradeSections' => GradeSection::all(),
-            'academicYears' => AcademicYear::all(),
+            'gradeSections' => GradeSection::all(['id', 'name', 'level']),
+            'academicYears' => AcademicYear::all(['id', 'name']),
+            'filters' => [
+                'per_page' => $this->perPage($request),
+                'sort_by' => $request->sort_by,
+                'sort_dir' => $request->sort_dir,
+            ],
         ]);
     }
 
@@ -38,16 +43,6 @@ class EnrollmentController extends Controller
         Enrollment::create($request->validated());
 
         return redirect()->route('admin.enrollments.index')->with('success', 'Matrícula registrada correctamente.');
-    }
-
-    public function edit(Enrollment $enrollment)
-    {
-        return view('admin.enrollments.edit', [
-            'enrollment' => $enrollment,
-            'students' => Student::with('user')->get(),
-            'gradeSections' => GradeSection::all(),
-            'academicYears' => AcademicYear::all(),
-        ]);
     }
 
     public function update(Request $request, Enrollment $enrollment)

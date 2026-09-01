@@ -7,23 +7,33 @@ use App\Http\Requests\Admin\StoreGuardianRequest;
 use App\Http\Requests\Admin\UpdateGuardianRequest;
 use App\Models\Guardian;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class GuardianController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
-        $guardians = Guardian::with("user")
+        $query = Guardian::with("user")
             ->when($request->search, fn ($q, $search) => $q->where("first_name", "like", "%{$search}%")
                 ->orWhere("last_name", "like", "%{$search}%")
                 ->orWhere("phone_whatsapp", "like", "%{$search}%"))
-            ->paginate(20);
+            ->when($request->filled("status"), fn ($q) => $q->whereHas("user", fn ($uq) => $uq->where("active", $request->boolean("status"))));
 
-        return view("admin.guardians.index", compact("guardians"));
-    }
+        $guardians = $this->applySort($query, $request, ["first_name", "phone_whatsapp"], "first_name")
+            ->paginate($this->perPage($request))
+            ->withQueryString();
 
-    public function create()
-    {
-        return view("admin.guardians.create");
+        return Inertia::render("Admin/Guardians/Index", [
+            "guardians" => $guardians,
+            "filters" => [
+                "search" => $request->search,
+                "status" => $request->status,
+                "per_page" => $this->perPage($request),
+                "sort_by" => $request->sort_by,
+                "sort_dir" => $request->sort_dir,
+            ],
+        ]);
     }
 
     public function store(StoreGuardianRequest $request)
@@ -45,16 +55,7 @@ class GuardianController extends Controller
             "phone_whatsapp" => $data["phone_whatsapp"],
         ]);
 
-        if ($request->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Apoderado registrado correctamente.', 'guardian' => $guardian]);
-        }
-
         return redirect()->route("admin.guardians.index")->with("success", "Apoderado registrado correctamente.");
-    }
-
-    public function edit(Guardian $guardian)
-    {
-        return view("admin.guardians.edit", compact("guardian"));
     }
 
     public function update(UpdateGuardianRequest $request, Guardian $guardian)
@@ -73,10 +74,6 @@ class GuardianController extends Controller
             "phone" => $data["phone"] ?? null,
         ]);
 
-        if ($request->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Apoderado actualizado correctamente.', 'guardian' => $guardian]);
-        }
-
         return redirect()->route("admin.guardians.index")->with("success", "Apoderado actualizado correctamente.");
     }
 
@@ -84,10 +81,6 @@ class GuardianController extends Controller
     {
         $guardian->user->delete();
         $guardian->delete();
-
-        if (request()->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Apoderado eliminado correctamente.']);
-        }
 
         return back()->with("success", "Apoderado eliminado correctamente.");
     }

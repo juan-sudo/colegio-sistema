@@ -14,19 +14,21 @@ use App\Models\GradeSection;
 use App\Models\Payment;
 use App\Models\Student;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
 {
-    public function index()
+    public function index(): Response
     {
         $courses = Course::with(['gradeSection', 'teacher'])->get();
-        $gradeSections = GradeSection::all();
+        $gradeSections = GradeSection::all(['id', 'name', 'level']);
 
-        return view('admin.reports.index', compact('courses', 'gradeSections'));
+        return Inertia::render('Admin/Reports/Index', compact('courses', 'gradeSections'));
     }
 
-    public function attendance(Request $request)
+    public function attendance(Request $request): Response
     {
         $courses = Course::with(['gradeSection', 'teacher'])->get();
         $selectedCourseId = $request->get('course_id');
@@ -56,10 +58,10 @@ class ReportController extends Controller
             ];
         }
 
-        return view('admin.reports.attendance', compact('courses', 'selectedCourseId', 'dateFrom', 'dateTo', 'attendances', 'stats'));
+        return Inertia::render('Admin/Reports/Attendance', compact('courses', 'selectedCourseId', 'dateFrom', 'dateTo', 'attendances', 'stats'));
     }
 
-    public function grades(Request $request)
+    public function grades(Request $request): Response
     {
         $courses = Course::with(['gradeSection', 'teacher'])->get();
         $selectedCourseId = $request->get('course_id');
@@ -86,10 +88,10 @@ class ReportController extends Controller
             ];
         }
 
-        return view('admin.reports.grades', compact('courses', 'selectedCourseId', 'grades', 'stats'));
+        return Inertia::render('Admin/Reports/Grades', compact('courses', 'selectedCourseId', 'grades', 'stats'));
     }
 
-    public function students(Request $request)
+    public function students(Request $request): Response
     {
         $gradeSections = GradeSection::all();
         $selectedGradeSectionId = $request->get('grade_section_id');
@@ -113,10 +115,10 @@ class ReportController extends Controller
             ];
         }
 
-        return view('admin.reports.students', compact('gradeSections', 'selectedGradeSectionId', 'students', 'stats'));
+        return Inertia::render('Admin/Reports/Students', compact('gradeSections', 'selectedGradeSectionId', 'students', 'stats'));
     }
 
-    public function payments(Request $request)
+    public function payments(Request $request): Response
     {
         $type = $request->get('type');
         $status = $request->get('status');
@@ -133,7 +135,7 @@ class ReportController extends Controller
             'total_count' => $payments->count(),
         ];
 
-        return view('admin.reports.payments', compact('payments', 'stats', 'type', 'status'));
+        return Inertia::render('Admin/Reports/Payments', compact('payments', 'stats', 'type', 'status'));
     }
 
     public function exportPayments(Request $request)

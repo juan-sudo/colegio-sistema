@@ -11,6 +11,4 @@ class GradeSection extends Model
     public function shift()        { return $this->belongsTo(Shift::class); }
     public function students()     { return $this->hasMany(Student::class); }
     public function courses()      { return $this->hasMany(Course::class); }
-    public function schedules()    { return $this->hasMany(Schedule::class); }
-    public function subjects()     { return $this->belongsToMany(Subject::class, "grade_section_subject"); }
 }

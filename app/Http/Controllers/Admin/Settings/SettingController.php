@@ -5,17 +5,19 @@ namespace App\Http\Controllers\Admin\Settings;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class SettingController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
         $groups = Setting::select('group')->distinct()->pluck('group');
         $selectedGroup = $request->group ?? $groups->first();
 
         $settings = Setting::where('group', $selectedGroup)->get();
 
-        return view('admin.settings.index', compact('settings', 'groups', 'selectedGroup'));
+        return Inertia::render('Admin/Settings/Index', compact('settings', 'groups', 'selectedGroup'));
     }
 
     public function update(Request $request)

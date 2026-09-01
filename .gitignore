@@ -1,7 +1,9 @@
 /vendor/
 /node_modules/
 /public/hot
+/public/build
 /public/storage
+/bootstrap/cache/*.php
 /storage/*.key
 /.env
 /.env.backup

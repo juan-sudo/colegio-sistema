@@ -7,24 +7,34 @@ use App\Http\Requests\Admin\StoreTeacherRequest;
 use App\Http\Requests\Admin\UpdateTeacherRequest;
 use App\Models\Teacher;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class TeacherController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
-        $teachers = Teacher::with("user")
+        $query = Teacher::with("user")
             ->when($request->search, fn ($q, $search) => $q->where("code", "like", "%{$search}%")
                 ->orWhere("first_name", "like", "%{$search}%")
                 ->orWhere("last_name", "like", "%{$search}%")
                 ->orWhere("specialty", "like", "%{$search}%"))
-            ->paginate(20);
+            ->when($request->filled("status"), fn ($q) => $q->whereHas("user", fn ($uq) => $uq->where("active", $request->boolean("status"))));
 
-        return view("admin.teachers.index", compact("teachers"));
-    }
+        $teachers = $this->applySort($query, $request, ["code", "first_name", "specialty"], "first_name")
+            ->paginate($this->perPage($request))
+            ->withQueryString();
 
-    public function create()
-    {
-        return view("admin.teachers.create");
+        return Inertia::render("Admin/Teachers/Index", [
+            "teachers" => $teachers,
+            "filters" => [
+                "search" => $request->search,
+                "status" => $request->status,
+                "per_page" => $this->perPage($request),
+                "sort_by" => $request->sort_by,
+                "sort_dir" => $request->sort_dir,
+            ],
+        ]);
     }
 
     public function store(StoreTeacherRequest $request)
@@ -47,16 +57,7 @@ class TeacherController extends Controller
             "specialty" => $data["specialty"] ?? null,
         ]);
 
-        if ($request->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Profesor registrado correctamente.', 'teacher' => $teacher]);
-        }
-
         return redirect()->route("admin.teachers.index")->with("success", "Profesor registrado correctamente.");
-    }
-
-    public function edit(Teacher $teacher)
-    {
-        return view("admin.teachers.edit", compact("teacher"));
     }
 
     public function update(UpdateTeacherRequest $request, Teacher $teacher)
@@ -77,10 +78,6 @@ class TeacherController extends Controller
             "active" => $data["active"] ?? true,
         ]);
 
-        if ($request->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Profesor actualizado correctamente.', 'teacher' => $teacher]);
-        }
-
         return redirect()->route("admin.teachers.index")->with("success", "Profesor actualizado correctamente.");
     }
 
@@ -88,10 +85,6 @@ class TeacherController extends Controller
     {
         $teacher->user->delete();
         $teacher->delete();
-
-        if (request()->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Profesor eliminado correctamente.']);
-        }
 
         return back()->with("success", "Profesor eliminado correctamente.");
     }
