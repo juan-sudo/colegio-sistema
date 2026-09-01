@@ -1,20 +1,7 @@
 FROM php:8.2-fpm
 
 # Instalar dependencias del sistema (AGREGADO: libzip-dev)
-RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    libzip-dev \
-    zip \
-    unzip \
-    nodejs \
-    npm \
-    libjpeg62-turbo-dev \
-    libfreetype6-dev \
-    libwebp-dev
+RUN apt-get update && apt-get install -y git curl libpng-dev libonig-dev libxml2-dev libzip-dev zip unzip nodejs npm libjpeg62-turbo-dev libfreetype6-dev libwebp-dev
 
 # Instalar extensiones de PHP
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
@@ -27,6 +14,11 @@ WORKDIR /var/www/html
 
 # Copiar archivos del proyecto
 COPY . .
+
+# Crear carpetas necesarias para Laravel (excluidas del build por .dockerignore)
+RUN mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/views storage/logs storage/app/public
+RUN chmod -R 775 bootstrap/cache storage
+RUN chown -R www-data:www-data bootstrap/cache storage
 
 # Instalar dependencias de PHP
 RUN composer install --optimize-autoloader --no-interaction --ignore-platform-req=ext-zip
