@@ -26,14 +26,13 @@ RUN composer install --optimize-autoloader --no-interaction --ignore-platform-re
 # Instalar dependencias de Node y compilar assets (Tailwind)
 RUN npm install && npm run build
 
-# Cachear configuración
-RUN php artisan config:cache && php artisan route:cache
-
 # Configurar permisos
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
 # Exponer puerto
 EXPOSE 10000
 
-# Comando de inicio
-CMD php artisan serve --host=0.0.0.0 --port=10000
+# Nota: config:cache y route:cache se ejecutan al iniciar el contenedor (no en build),
+# porque las variables de entorno reales (APP_KEY, DB_*, etc.) solo estan disponibles
+# en tiempo de ejecucion en Render, no durante el build de la imagen.
+CMD php artisan config:clear && php artisan route:clear && php artisan config:cache && php artisan route:cache && php artisan serve --host=0.0.0.0 --port=10000
