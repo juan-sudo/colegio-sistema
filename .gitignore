@@ -6,6 +6,8 @@
 /bootstrap/cache/*.php
 /storage/*.key
 /.env
+colegio_sistema.sql
+data.sql
 /.env.backup
 .phpunit.result.cache
 docker-compose.override.yml

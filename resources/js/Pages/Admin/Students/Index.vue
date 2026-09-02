@@ -64,6 +64,10 @@ const columns = [
 ];
 
 const gradeSectionOptions = props.gradeSections.map((gs) => ({ value: gs.id, label: `${gs.name} - ${gs.level}` }));
+const guardianOptions = [
+    { value: '', label: 'Sin apoderado' },
+    ...props.guardians.map((g) => ({ value: g.id, label: g.label || g.name || `Apoderado #${g.id}` })),
+];
 
 const showModal = ref(false);
 const editing = ref(null);
@@ -212,7 +216,7 @@ function openCarnet(student) {
                         <SelectField
                             v-model="form.guardian_id"
                             label="Apoderado principal"
-                            :options="guardians"
+                            :options="guardianOptions"
                             :error="form.errors.guardian_id"
                             placeholder="Seleccionar apoderado"
                         />
