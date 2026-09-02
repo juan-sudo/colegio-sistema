@@ -15,12 +15,13 @@ libzip-dev \
 libjpeg62-turbo-dev \
 libfreetype6-dev \
 libwebp-dev \
+libpq-dev \
 ca-certificates \
 gnupg \
 && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 && apt-get install -y --no-install-recommends nodejs \
 && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
-&& docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip \
+&& docker-php-ext-install pdo_mysql pdo_pgsql pgsql mbstring exif pcntl bcmath gd zip \
 && apt-get clean \
 && rm -rf /var/lib/apt/lists/*
 
